@@ -1,0 +1,17 @@
+metadata_version: 1
+name: Deep Generative Modelling of Aircraft Trajectories in Terminal Maneuvering Areas
+description: Temporal convolutional variational autoencoder for aircraft trajectories
+  generation.
+authors:
+- name: Timothé Krauth
+  affiliations:
+  - name: Zurich University of Applied Sciences
+- name: Adrien Lafage
+  affiliations:
+  - name: ONERA Toulouse
+- name: Xavier Olive
+  affiliations:
+  - name: ONERA Toulouse
+corresponding_contributor:
+  name: Timothé Krauth
+  email: timothe.krauth@zhaw.ch
