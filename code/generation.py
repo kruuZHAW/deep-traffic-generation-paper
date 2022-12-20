@@ -20,6 +20,7 @@ Outputs:
 
 import click
 from typing import List
+import pickle
 
 import torch
 import numpy as np
@@ -37,7 +38,7 @@ def loading(training_name: str, fcvae_version: str, tcvae_version: str):
 
     #features and scaler are hardcoded: Only those are used in the paper
     dataset_fcvae = TrafficDataset.from_file(
-        "../../data/" + training_name,
+        "../data/" + training_name,
         features=["track", "groundspeed", "altitude", "timedelta"],
         scaler=MinMaxScaler(feature_range=(-1, 1)),
         shape= "linear",
@@ -46,19 +47,19 @@ def loading(training_name: str, fcvae_version: str, tcvae_version: str):
 
 
     dataset_tcvae = TrafficDataset.from_file(
-        "../../data/" + training_name,
+        "../data/" + training_name,
         features=["track", "groundspeed", "altitude", "timedelta"],
         scaler=MinMaxScaler(feature_range=(-1, 1)),
         shape= "image",
         info_params={"features": ["latitude", "longitude"], "index": -1},
     )
 
-    path_fcvae = "/".join(["deep_traffic_generation/lightning_logs/fcvae", vae_version])
-    path_tcvae = "/".join(["deep_traffic_generation/lightning_logs/tcvae", vae_version])
+    path_fcvae = "/".join(["deep_traffic_generation/lightning_logs/fcvae", fcvae_version])
+    path_tcvae = "/".join(["deep_traffic_generation/lightning_logs/tcvae", tcvae_version])
 
     t_fcvae = SingleStageVAE(X=dataset_fcvae, sim_type="generation")
     t_fcvae.load(path_fcvae, dataset_fcvae.parameters)
-    g_tcvae = Generation(
+    g_fcvae = Generation(
         generation=t_fcvae,
         features=t_fcvae.VAE.hparams.features,
         scaler=dataset_fcvae.scaler,
@@ -83,21 +84,13 @@ def reconstruction(dataset_fcvae: TrafficDataset,
     traffic_name: str, 
     j: int = 10795):
     
-    traffic = Traffic.from_file("../../data/" + training_name)
+    traffic = Traffic.from_file("../data/" + traffic_name)
 
     click.echo("Reconstruction for FCVAE...")
-    original_fcvae = dataset_fcvae.data[j].unsqueeze(0)
-    if len(original_fcvae.shape) >= 3:
-        original_fcvae = original_fcvae.transpose(1, 2).reshape((original_fcvae.shape[0], -1))
-    original_fcvae = dataset_fcvae.scaler.inverse_transform(original_fcvae)
-    original_traf_fcvae = g_fcvae.build_traffic(
-        original_fcvae,
-        coordinates=dict(latitude=47.546585, longitude=8.447731),
-        forward=False,
-    )
-    reconstructed_fcvae = t_fcvae.decode(
-        t_fcvae.VAE.encoder(dataset_fcvae.data[j].unsqueeze(0))
-    )
+    
+    h_fcvae = t_fcvae.VAE.encoder(dataset_fcvae.data[j].unsqueeze(0))
+    z_fcvae = t_fcvae.VAE.lsr(h_fcvae).rsample()
+    reconstructed_fcvae = t_fcvae.decode(z_fcvae)
     reconstructed_traf_fcvae = g_fcvae.build_traffic(
         reconstructed_fcvae,
         coordinates=dict(latitude=47.546585, longitude=8.447731),
@@ -106,18 +99,9 @@ def reconstruction(dataset_fcvae: TrafficDataset,
     reconstruction_traf_fcvae = traffic[j] + reconstructed_traf_fcvae
 
     click.echo("Reconstruction for TCVAE...")
-    original_tcvae = dataset_tcvae.data[j].unsqueeze(0)
-    if len(original_tcvae.shape) >= 3:
-        original_tcvae = original_tcvae.transpose(1, 2).reshape((original_tcvae.shape[0], -1))
-    original_tcvae = dataset_tcvae.scaler.inverse_transform(original_tcvae)
-    original_traf_tcvae = g_tcvae.build_traffic(
-        original_tcvae,
-        coordinates=dict(latitude=47.546585, longitude=8.447731),
-        forward=False,
-    )
-    reconstructed_tcvae = t_tcvae.decode(
-        t_tcvae.VAE.encoder(dataset_tcvae.data[j].unsqueeze(0))
-    )
+    h_tcvae = t_tcvae.VAE.encoder(dataset_tcvae.data[j].unsqueeze(0))
+    z_tcvae = t_tcvae.VAE.lsr(h_tcvae).rsample()
+    reconstructed_tcvae = t_tcvae.decode(z_tcvae)
     reconstructed_traf_tcvae = g_tcvae.build_traffic(
         reconstructed_tcvae,
         coordinates=dict(latitude=47.546585, longitude=8.447731),
@@ -127,9 +111,7 @@ def reconstruction(dataset_fcvae: TrafficDataset,
 
     return reconstruction_traf_fcvae, reconstruction_traf_tcvae
 
-def clustering(dataset_fcvae: TrafficDataset, 
-    dataset_tcvae: TrafficDataset, 
-    t_fcvae: SingleStageVAE, 
+def clustering(t_fcvae: SingleStageVAE, 
     t_tcvae: SingleStageVAE, 
     g_fcvae: Generation, 
     g_tcvae: Generation): 
@@ -145,8 +127,8 @@ def clustering(dataset_fcvae: TrafficDataset,
     traffics_fcvae = []
     for i in np.unique(labels_fcvae):
         print("fcvae traffic : ", i)
-        decoded = t_fcvae.decode(torch.Tensor(Z[labels_fcvae == i]))
-        traf_clust = g_FCVAE.build_traffic(
+        decoded = t_fcvae.decode(torch.Tensor(Z_fcvae[labels_fcvae == i]))
+        traf_clust = g_fcvae.build_traffic(
             decoded,
             coordinates=dict(latitude=47.546585, longitude=8.447731),
             forward=False,
@@ -157,7 +139,7 @@ def clustering(dataset_fcvae: TrafficDataset,
     click.echo("Clustering for TCVAE...")
     Z_tcvae = t_tcvae.latent_space(1)
     pca_tcvae = PCA(n_components=2).fit(Z_tcvae)
-    Z_embedded_tcvae = pca_tcvae.transform(Z)
+    Z_embedded_tcvae = pca_tcvae.transform(Z_tcvae)
     labels_tcvae = GaussianMixture(n_components=7, random_state=0).fit_predict(Z_embedded_tcvae)
     Z_embedded_tcvae = np.append(Z_embedded_tcvae, np.expand_dims(labels_tcvae, axis=1), axis=1)
     Z_embedded_tcvae = pd.DataFrame(Z_embedded_tcvae, columns=["X1", "X2", "label"])
@@ -165,7 +147,7 @@ def clustering(dataset_fcvae: TrafficDataset,
     traffics_tcvae = []
     for i in np.unique(labels_tcvae):
         print("tcvae traffic : ", i)
-        decoded = t_tcvae.decode(torch.Tensor(Z[labels_tcvae == i]))
+        decoded = t_tcvae.decode(torch.Tensor(Z_tcvae[labels_tcvae == i]))
         traf_clust = g_tcvae.build_traffic(
             decoded,
             coordinates=dict(latitude=47.546585, longitude=8.447731),
@@ -178,7 +160,7 @@ def clustering(dataset_fcvae: TrafficDataset,
     return Z_embedded_fcvae, Z_embedded_tcvae, traffics_fcvae, traffics_tcvae
 
 #Generate in within particular VampPrior componenents for TCVAE
-def generate_vamp_tcvae(training_data: TrafficDataset, t: SingleStageVAE, g: Generation, indexes: List[int] = [39, 91], n_gen: int = 100):
+def generate_vamp_tcvae(training_data: TrafficDataset, t: SingleStageVAE, g: Generation, indexes: List[int], n_gen: int = 100):
 
     #Calculating Pseudo-inputs
     pseudo_X = t.VAE.lsr.pseudo_inputs_NN(t.VAE.lsr.idle_input)
@@ -259,24 +241,24 @@ def main(
     dataset_fcvae, dataset_tcvae, t_fcvae, t_tcvae, g_fcvae, g_tcvae = loading(training_name, fcvae_version, tcvae_version)
 
     click.echo("Building Reconstruction...")
-    reconstruction_traf_fcvae, reconstruction_traf_tcvae = reconstruction(dataset_fcvae, dataset_tcvae, t_fcvae, t_tcvae, g_fcvae, g_tcvae, traffic_name)
-    reconstruction_traf_fcae.to_pickle("../../results/reconstruction/reconstruction_fcae.pkl")
-    reconstruction_traf_tcae.to_pickle("../../results/reconstruction/reconstruction_tcae.pkl")
+    reconstruction_traf_fcvae, reconstruction_traf_tcvae = reconstruction(dataset_fcvae, dataset_tcvae, t_fcvae, t_tcvae, g_fcvae, g_tcvae, training_name)
+    reconstruction_traf_fcvae.to_pickle("../results/reconstruction/reconstruction_fcvae.pkl")
+    reconstruction_traf_tcvae.to_pickle("../results/reconstruction/reconstruction_tcvae.pkl")
 
     click.echo("Building Clusterings...")
-    Z_embedded_fcvae, Z_embedded_tcvae, traffics_fcvae, traffics_tcvae = clustering(dataset_fcvae, dataset_tcvae, t_fcvae, t_tcvae, g_fcvae,g_tcvae)
-    Z_embedded_fcvae.to_pickle("../../results/clustering/Z_embedded_fcvae.pkl")
-    with open("../../results/clustering/traffics_clust_fcvae.pkl", "wb") as f:
+    Z_embedded_fcvae, Z_embedded_tcvae, traffics_fcvae, traffics_tcvae = clustering(t_fcvae, t_tcvae, g_fcvae,g_tcvae)
+    Z_embedded_fcvae.to_pickle("../results/clustering/Z_embedded_fcvae.pkl")
+    with open("../results/clustering/traffics_clust_fcvae.pkl", "wb") as f:
         pickle.dump(traffics_fcvae, f)
-    Z_embedded_tcvae.to_pickle("../../results/clustering/Z_embedded_tcvae.pkl")
-    with open("../../results/clustering/traffics_clust_tcvae.pkl", "wb") as f:
+    Z_embedded_tcvae.to_pickle("../results/clustering/Z_embedded_tcvae.pkl")
+    with open("../results/clustering/traffics_clust_tcvae.pkl", "wb") as f:
         pickle.dump(traffics_tcvae, f)
 
     click.echo("Generation VampPrior...")
     gen_embedded, traf_gen1, traf_gen2 = generate_vamp_tcvae(dataset_tcvae, t_tcvae, g_tcvae, indexes = [262, 787], n_gen = 100)
-        gen_embedded.to_pickle("../../results/generation/latent_space_vampprior_tcvae.pkl")
-        traf_gen1.to_pickle("../../results/generation/tcvae_traf_gen1.pkl")
-        traf_gen2.to_pickle("../../results/generation/tcvae_traf_gen2.pkl")
+    gen_embedded.to_pickle("../results/generation/latent_space_vampprior_tcvae.pkl")
+    traf_gen1.to_pickle("../results/generation/tcvae_traf_gen1.pkl")
+    traf_gen2.to_pickle("../results/generation/tcvae_traf_gen2.pkl")
 
 if __name__ == "__main__":
     main()

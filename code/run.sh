@@ -1,11 +1,3 @@
-#!/usr/bin/env bash
-set -ex
-
-# This is the master script for the capsule. When you click "Reproducible Run", the code in this file will execute.
-# bash run.sh "$@"
-
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/conda/lib
-
 # Script used for the training of the paper
 
 # cd deep_traffic_generation
@@ -23,8 +15,6 @@ set -ex
 
 # cd ..
 
-python3 generation.py traffic_noga_tilFAF.pkl version_0 version_1
-# python3 generation.py traffic_noga_tilFAF.pkl tcvae gaussian version_0 image
-# python3 generation.py traffic_noga_tilFAF.pkl fcvae gaussian version_0 linear
-# python3 plot.py
+# python3 generation.py traffic_noga_tilFAF.pkl version_0 version_1
+python3 plot.py
 

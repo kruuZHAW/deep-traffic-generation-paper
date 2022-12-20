@@ -6,78 +6,24 @@ Outputs:
 
 """
 
-import glob
 import click
 import pandas as pd
+import pickle
 import matplotlib.pyplot as plt
 import altair as alt
 
 from traffic.core import Traffic
-from traffic.core.projection import EuroPP
+from traffic.core.projection import EuroPP, PlateCarree
 from traffic.data import airports
 from traffic.data import navaids
 
-#Loading Data
-click.echo("Loading synthetic traffics...")
-synth_traf_path = glob.glob("../../results/synth_traf_*")[0]
-synth_traf = Traffic.from_file(synth_traf_path)
+def plot_generation_tcvae(latent_space_path: str, traf_gen1_path: str, traf_gen2_path: str):
 
-if len(glob.glob("../../results/latent_space_*")) > 0:
-    latent_sapce_path = glob.glob("../../results/latent_space_*")[0]
-    taf_gen1_path = glob.glob("../../results/*traf_gen1*")[0]
-    taf_gen2_path = glob.glob("../../results/*traf_gen2*")[0]
+    Z_gen = pd.read_pickle(latent_space_path)
+    traf_gen1 = Traffic.from_file(traf_gen1_path)
+    traf_gen2 = Traffic.from_file(traf_gen2_path)
 
-    Z_gen = pd.read_pickle(latent_sapce_path)
-    traf_gen1 = Traffic.from_file(taf_gen1_path)
-    traf_gen2 = Traffic.from_file(taf_gen2_path)
-
-#Plot traffic of random trajectories synth_traf
-click.echo("Plotting random synthetic trajectories...")
-with plt.style.context("traffic"):
-    fig, ax = plt.subplots(
-        1, 1, figsize=(15, 15), subplot_kw=dict(projection=EuroPP()), dpi=300
-    )
-    synth_traf.plot(ax, alpha=0.2)
-
-    k = 0
-    synth_traf[k].plot(ax, color="#1f77b4", lw=1.5)
-    synth_traf[k].at_ratio(0.8).plot(
-        ax,
-        color="#1f77b4",
-        zorder=3,
-        s=600,
-        shift=dict(units="dots", x=-60, y=60),
-        text_kw=dict(
-            fontname="Fira Sans",
-            # fontSize=18,
-            ha="right",
-            bbox=dict(
-                boxstyle="round",
-                edgecolor="none",
-                facecolor="white",
-                alpha=0.7,
-                zorder=5,
-            ),
-        ),
-    )
-
-    airports["LSZH"].plot(ax, footprint=False, runways=dict(lw=1), labels=False)
-
-    navaids["OSNEM"].plot(
-        ax,
-        zorder=5,
-        marker="^",
-        shift=dict(units="dots", x=45, y=-45),
-        text_kw={"s": "FAP", 
-            # "fontSize": 18, 
-            "va": "center"},
-    )
-
-    fig.savefig("../../results/synthetic_trajectories.png", transparent=False, dpi=300)
-
-if len(glob.glob("../../results/latent_space_*")) > 0:
-    #Plot latent space + traf_gen1 + traf_gen2
-    click.echo("Plotting synthetic traffic flows...")
+    #Plot TCVAE generation
     with plt.style.context("traffic"):
         fig = plt.figure(figsize=(17, 12))
         ax0 = fig.add_subplot(221)
@@ -152,10 +98,9 @@ if len(glob.glob("../../results/latent_space_*")) > 0:
             left=0.125, bottom=0.1, right=0.9, top=0.9, wspace=0, hspace=0
         )
 
-    fig.savefig("../../results/generation_flows.png", transparent=False, dpi=300)
+    fig.savefig("../results/figures/figure_12.png", transparent=False, dpi=300)
 
     #Plot altitude + ground speed flows of traf_gen1 and traf_gen2
-    click.echo("Plotting atltitude and groundspeed...")
     # Just put the pseudo-input at the end for display
     copy_traf_1 = traf_gen1
     a = copy_traf_1["TRAJ_0"].assign(flight_id="TRAJ_999")
@@ -263,4 +208,105 @@ if len(glob.glob("../../results/latent_space_*")) > 0:
         .configure_axis(labelFontSize=12, titleFontSize=14)
     )
 
-    plots.save('alt_gs_gen.html', scale_factor=2.0)
+    plots.save('../results/figures/figure_13.html', scale_factor=2.0)
+    
+def plot_reconstruction(reconstruction_fcvae_path: str, reconstruction_tcvae_path: str):
+    
+    reconstruction_fcvae = Traffic.from_file(reconstruction_fcvae_path)
+    reconstruction_tcvae = Traffic.from_file(reconstruction_tcvae_path)
+    
+    with plt.style.context("traffic"):
+        fig, ax = plt.subplots(
+            1, 2, figsize=(13, 8), subplot_kw=dict(projection=EuroPP())
+        )
+
+        ax[0].set_title("FCVAE reconstruction", pad=20, fontsize=20)
+        reconstruction_fcvae[0].plot(ax[0], lw=2)
+        reconstruction_fcvae[1].plot(ax[0], lw=2)
+
+        ax[1].set_title("TCVAE reconstruction", pad=20, fontsize=20)
+        reconstruction_tcvae[0].plot(ax[1], lw=2, label="original")
+        reconstruction_tcvae[1].plot(ax[1], lw=2, label="reconstructed")
+        ax[1].set_extent(ax[0].get_extent(crs=PlateCarree()))
+        legend = fig.legend(
+            loc="lower center", bbox_to_anchor=(0.5, 0.2), ncol=2, fontsize=18
+        )
+        legend.get_frame().set_edgecolor("none")
+
+    fig.savefig("../results/figures/figure_6.png", transparent=False, dpi=300)
+    
+def plot_clustering(Z_fcvae_path: str, Z_tcvae_path: str, traffics_fcvae_path: str, traffics_tcvae_path: str):
+    with open(traffics_fcvae_path, "rb") as f:
+        traffics_fcvae = mynewlist = pickle.load(f)
+
+    with open(traffics_tcvae_path, "rb") as f:
+        traffics_tcvae = mynewlist = pickle.load(f)
+
+    Z_fcvae = pd.read_pickle(Z_fcvae_path)
+    Z_tcvae = pd.read_pickle(Z_tcvae_path)
+    
+    color_cycle = "#a6cee3 #1f78b4 #b2df8a #33a02c #fb9a99 #e31a1c #fdbf6f #ff7f00 #cab2d6 #6a3d9a #ffff99 #b15928".split()
+    
+    colors = [color_cycle[int(i)] for i in Z_fcvae.label]
+    with plt.style.context("traffic"):
+        fig = plt.figure(figsize=(30, 15))
+        ax0 = fig.add_subplot(121)
+        ax1 = fig.add_subplot(122, projection=EuroPP())
+        
+
+        ax0.scatter(Z_fcvae.X1, Z_fcvae.X2, s=4, c = colors)
+        ax0.set_yticklabels([])
+        ax0.set_xticklabels([])
+        ax0.set_title("FCVAE latent space", fontsize=30, pad=18)
+        ax0.grid(False)
+
+        ax1.figure
+        ax1.set_title("FCVAE reconstructed trajectories", fontsize=30, pad=18)
+        for i, traf in enumerate(traffics_fcvae) :
+            traf.plot(ax1, alpha=0.2, color = color_cycle[i])
+    fig.savefig("../results/figures/figure_7.png", transparent=False, dpi=300)
+    
+    colors = [color_cycle[int(i)] for i in Z_tcvae.label]
+    with plt.style.context("traffic"):
+        fig = plt.figure(figsize=(30, 15))
+        ax0 = fig.add_subplot(121)
+        ax1 = fig.add_subplot(122, projection=EuroPP())
+        
+
+        ax0.scatter(Z_tcvae.X1, Z_tcvae.X2, s=4, c = colors)
+        ax0.set_yticklabels([])
+        ax0.set_xticklabels([])
+        ax0.set_title("TCVAE latent space", fontsize=30, pad=18)
+        ax0.grid(False)
+
+        ax1.figure
+        ax1.set_title("TCVAE reconstructed trajectories", fontsize=30, pad=18)
+        for i, traf in enumerate(traffics_tcvae) :
+            traf.plot(ax1, alpha=0.2, color = color_cycle[i])
+    fig.savefig("../results/figures/figure_8.png", transparent=False, dpi=300)
+    
+    
+    
+def main(
+):
+
+    click.echo("Plotting generation TCVAE...")
+    plot_generation_tcvae("../results/generation/latent_space_vampprior_tcvae.pkl", 
+                          "../results/generation/tcvae_traf_gen1.pkl",
+                          "../results/generation/tcvae_traf_gen2.pkl")
+    
+    click.echo("Plotting reconstruction...")
+    plot_reconstruction("../results/reconstruction/reconstruction_fcvae.pkl",
+                        "../results/reconstruction/reconstruction_tcvae.pkl")
+    
+    click.echo("Plotting Clustering...")
+    plot_clustering("../results/clustering/Z_embedded_fcvae.pkl",
+                    "../results/clustering/Z_embedded_tcvae.pkl",
+                    "../results/clustering/traffics_clust_fcvae.pkl",
+                    "../results/clustering/traffics_clust_tcvae.pkl")
+
+
+if __name__ == "__main__":
+    main()
+    
+    
