@@ -8,7 +8,7 @@ setup(
     description="Description",
     author="Timothé Krauth",
     author_email="",
-    url="https://github.com/kruuZHAW",
+    url="https://github.com/kruuZHAW/",
     install_requires=[
         "pytorch-lightning",
         "traffic",
