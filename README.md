@@ -32,11 +32,12 @@ conda activate traffic
 
 # clone project   
 git clone https://github.com/kruuZHAW/deep-traffic-generation-paper
+```
 
 ## How to run 
  Navigate to `code` folder and run `run.sh`. To choose to train the model rather than display the plots, comment and uncomment the corresponding lines in `run.sh`.   
+ 
  ```bash
-# code folder
 cd code
 bash run.sh
 ```
