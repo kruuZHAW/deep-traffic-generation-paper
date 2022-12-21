@@ -30,6 +30,10 @@ conda activate traffic
 
 # clone project   
 git clone https://github.com/kruuZHAW/deep-traffic-generation-paper
+
+# install project
+cd deep-traffic-generation
+pip install .
 ```
 
 ## How to run 
