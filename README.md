@@ -15,7 +15,7 @@ ARXIV
 -->
 
 
-## Desciption
+## Description
 This package provides neural network architectures to embed and generate traffic trajectories. This project relies on [traffic](https://traffic-viz.github.io/) and [Pytorch-Lightning](https://www.pytorchlightning.ai/) libraries. This repository reproduces the plots in the paper [Deep Generative Modelling of Aircraft Trajectories in Terminal Maneuvering Areas](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4254106)
 
 This repository is intended for reproducibility purposes on the codeocean platform.
