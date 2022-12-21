@@ -1,6 +1,6 @@
 <div align="center">    
  
-# Deep Traffic Generation
+# Deep Traffic Generation Paper
 <!--
 [![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://www.nature.com/articles/nature14539)
 [![Conference](http://img.shields.io/badge/NeurIPS-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
@@ -17,8 +17,6 @@ ARXIV
 Conference   
 -->   
 </div>
-
-# deep-traffic-generation-paper
 
 ## Desciption
 Package that provides neural networks (mostly autoencoders) to embed and generate traffic trajectories. This project relies on [traffic](https://traffic-viz.github.io/) and [Pytorch-Lightning](https://www.pytorchlightning.ai/) libraries. This repositroy provides the plots in the paper [Deep Generative Modelling of Aircraft Trajectories in Terminal Maneuvering Areas](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4254106)
