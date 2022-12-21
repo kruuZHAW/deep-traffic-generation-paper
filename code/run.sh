@@ -15,6 +15,6 @@
 
 # cd ..
 
-# python3 generation.py traffic_noga_tilFAF.pkl version_0 version_1
+python3 generation.py traffic_noga_tilFAF_train.pkl version_0 version_1
 python3 plot.py
 

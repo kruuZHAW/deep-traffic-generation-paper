@@ -164,7 +164,8 @@ def generate_vamp_tcvae(training_data: TrafficDataset, t: SingleStageVAE, g: Gen
 
     #Calculating Pseudo-inputs
     pseudo_X = t.VAE.lsr.pseudo_inputs_NN(t.VAE.lsr.idle_input)
-    pseudo_X = pseudo_X.view((pseudo_X.shape[0], training_data.data.shape[1], training_data.data.shape[2]))
+    # pseudo_X = pseudo_X.view((pseudo_X.shape[0], training_data.data.shape[1], training_data.data.shape[2]))
+    pseudo_X = pseudo_X.view((pseudo_X.shape[0], 4, 200))
     pseudo_h = t.VAE.encoder(pseudo_X)
     pseudo_means = t.VAE.lsr.z_loc(pseudo_h)
     pseudo_scales = (t.VAE.lsr.z_log_var(pseudo_h) / 2).exp()
@@ -255,7 +256,7 @@ def main(
         pickle.dump(traffics_tcvae, f)
 
     click.echo("Generation VampPrior...")
-    gen_embedded, traf_gen1, traf_gen2 = generate_vamp_tcvae(dataset_tcvae, t_tcvae, g_tcvae, indexes = [262, 787], n_gen = 100)
+    gen_embedded, traf_gen1, traf_gen2 = generate_vamp_tcvae(dataset_tcvae, t_tcvae, g_tcvae, indexes = [262,787], n_gen = 100)
     gen_embedded.to_pickle("../results/generation/latent_space_vampprior_tcvae.pkl")
     traf_gen1.to_pickle("../results/generation/tcvae_traf_gen1.pkl")
     traf_gen2.to_pickle("../results/generation/tcvae_traf_gen2.pkl")
